@@ -1,5 +1,5 @@
 use std::{
-    ffi::{c_char, c_long},
+    ffi::{c_char, c_int, c_long},
     marker::PhantomData,
     os::fd::AsRawFd,
 };
@@ -11,10 +11,10 @@ use log::Level;
 use syscalls::{SyscallArgs, Sysno};
 
 #[derive(Debug, Clone, PartialEq, Copy)]
-pub struct Error(&'static str, std::ffi::c_int);
+pub struct Error(&'static str, c_int);
 
 impl Error {
-    pub fn new(func: &'static str, res: std::ffi::c_int) -> Error {
+    pub fn new(func: &'static str, res: c_int) -> Error {
         Error(func, res)
     }
 }
