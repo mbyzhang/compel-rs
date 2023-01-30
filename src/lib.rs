@@ -1,5 +1,6 @@
 use std::{
     ffi::{c_char, c_long},
+    marker::PhantomData,
     os::fd::AsRawFd,
 };
 
@@ -36,18 +37,33 @@ macro_rules! ccheck_ptr {
     }}
 }
 
-pub struct ParasiteCtl {
+pub struct ParasiteCtl<T, R>
+where
+    T: Send + Copy,
+    R: Send + Copy,
+{
     inner: *mut compel_sys::parasite_ctl,
+    _marker_t: PhantomData<T>,
+    _marker_r: PhantomData<R>,
 }
 
-impl ParasiteCtl {
+impl<T, R> ParasiteCtl<T, R>
+where
+    T: Send + Copy,
+    R: Send + Copy,
+{
     pub fn prepare(pid: compel_sys::pid_t) -> Result<Self> {
         let ctl = ccheck_ptr!(compel_prepare(pid))?;
 
-        Ok(ParasiteCtl { inner: ctl })
+        Ok(ParasiteCtl {
+            inner: ctl,
+            _marker_t: PhantomData,
+            _marker_r: PhantomData,
+        })
     }
 
-    pub fn infect(&mut self, nr_threads: usize, args_size: usize) -> Result<()> {
+    pub fn infect(&mut self, nr_threads: usize) -> Result<()> {
+        let args_size = std::mem::size_of::<T>();
         ccheck!(compel_infect(
             self.inner,
             nr_threads as u64,
@@ -70,13 +86,24 @@ impl ParasiteCtl {
         }
     }
 
-    pub fn rpc_call_sync<T: Copy>(&mut self, cmd: impl Into<u32>, arg: &T) -> Result<()> {
-        let cmd = cmd.into() + compel_sys::PARASITE_USER_CMDS;
-        let arg_size = std::mem::size_of::<T>();
-        let arg_dest = unsafe { compel_sys::compel_parasite_args_s(self.inner, arg_size as u64) };
-        unsafe { std::ptr::copy_nonoverlapping(arg, arg_dest as *mut _, 1) };
+    pub fn rpc_call_sync(&mut self, cmd: u32, args: T) -> Result<()> {
+        let cmd = cmd + compel_sys::PARASITE_USER_CMDS;
+        let args_size = std::mem::size_of::<T>();
+        let args_dest = unsafe { compel_sys::compel_parasite_args_s(self.inner, args_size as _) };
+        unsafe { *(args_dest as *mut T) = args }
 
         ccheck!(compel_rpc_call_sync(cmd, self.inner)).map(|_| ())
+    }
+
+    pub fn rpc_call_sync_ret(&mut self, cmd: u32, args: T) -> Result<R> {
+        let cmd = cmd + compel_sys::PARASITE_USER_CMDS;
+        let args_size = std::mem::size_of::<T>();
+        let args_dest = unsafe { compel_sys::compel_parasite_args_s(self.inner, args_size as _) };
+        unsafe { *(args_dest as *mut T) = args }
+
+        ccheck!(compel_rpc_call_sync(cmd, self.inner)).map(|_| ())?;
+
+        Ok(unsafe { *(args_dest as *const R) })
     }
 
     pub fn cure(self) -> Result<()> {
@@ -102,7 +129,7 @@ impl ParasiteCtl {
     }
 }
 
-impl Drop for ParasiteCtl {
+impl<T: Send + Copy, R: Send + Copy> Drop for ParasiteCtl<T, R> {
     fn drop(&mut self) {
         // todo!()
     }
