@@ -66,8 +66,8 @@ where
         let args_size = std::mem::size_of::<T>();
         ccheck!(compel_infect(
             self.inner,
-            nr_threads as u64,
-            args_size as u64
+            nr_threads as _,
+            args_size as _
         ))
         .map(|_| ())
     }
@@ -125,7 +125,7 @@ where
             args.arg5 as _
         ))?;
 
-        Ok(ret as i64)
+        Ok(ret as _)
     }
 }
 
