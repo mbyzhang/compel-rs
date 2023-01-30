@@ -1,7 +1,13 @@
-use std::{ffi::c_char, os::fd::AsRawFd};
+use std::{
+    ffi::{c_char, c_long},
+    os::fd::AsRawFd,
+};
 
 pub use compel_sys;
+pub use syscalls;
+
 use log::Level;
+use syscalls::{SyscallArgs, Sysno};
 
 #[derive(Debug, Clone, PartialEq, Copy)]
 pub struct Error(&'static str, std::ffi::c_int);
@@ -75,6 +81,24 @@ impl ParasiteCtl {
 
     pub fn cure(self) -> Result<()> {
         ccheck!(compel_cure(self.inner)).map(|_| ())
+    }
+
+    pub fn syscall(&mut self, nr: Sysno, args: SyscallArgs) -> Result<i64> {
+        let mut ret: c_long = 0;
+
+        ccheck!(compel_syscall(
+            self.inner,
+            nr.id(),
+            &mut ret as *mut _,
+            args.arg0 as _,
+            args.arg1 as _,
+            args.arg2 as _,
+            args.arg3 as _,
+            args.arg4 as _,
+            args.arg5 as _
+        ))?;
+
+        Ok(ret as i64)
     }
 }
 
