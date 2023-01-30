@@ -1,4 +1,4 @@
-use std::ffi::{c_char, c_int};
+use std::{ffi::c_char, os::fd::AsRawFd};
 
 pub use compel_sys;
 use log::Level;
@@ -58,8 +58,10 @@ impl ParasiteCtl {
         unsafe { compel_sys::compel_infect_ctx(self.inner) }
     }
 
-    pub fn set_log_fd(&mut self, fd: c_int) {
-        unsafe { compel_sys::compel_infect_ctx_set_log_fd(self.infect_ctx_mut(), fd) };
+    pub fn set_log_fd(&mut self, fd: impl AsRawFd) {
+        unsafe {
+            (*self.infect_ctx_mut()).log_fd = fd.as_raw_fd() as _;
+        }
     }
 
     pub fn rpc_call_sync<T: Copy>(&mut self, cmd: impl Into<u32>, arg: &T) -> Result<()> {
