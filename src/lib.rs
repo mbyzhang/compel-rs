@@ -64,12 +64,7 @@ where
 
     pub fn infect(&mut self, nr_threads: usize) -> Result<()> {
         let args_size = std::mem::size_of::<T>();
-        ccheck!(compel_infect(
-            self.inner,
-            nr_threads as _,
-            args_size as _
-        ))
-        .map(|_| ())
+        ccheck!(compel_infect(self.inner, nr_threads as _, args_size as _)).map(|_| ())
     }
 
     pub fn as_mut_ptr(&mut self) -> *mut compel_sys::parasite_ctl {
@@ -135,11 +130,7 @@ impl<T: Send + Copy, R: Send + Copy> Drop for ParasiteCtl<T, R> {
     }
 }
 
-extern "C" fn print_compel_log(
-    level: u32,
-    fmt: *const c_char,
-    parms: *mut compel_sys::__va_list_tag,
-) {
+extern "C" fn print_compel_log(level: u32, fmt: *const c_char, parms: *mut compel_sys::va_list) {
     let s = unsafe { vsprintf::vsprintf(fmt, parms) }.expect("failed to print compel log");
     let s = s.trim_end();
     let level = match level {
@@ -153,11 +144,17 @@ extern "C" fn print_compel_log(
     log::log!(level, "{}", s);
 }
 
-pub fn log_init() {
+pub fn log_init(log_level: Level) {
     unsafe {
         compel_sys::compel_log_init(
-            Some(print_compel_log),
-            compel_sys::__compel_log_levels_COMPEL_LOG_DEBUG,
+            Some(std::mem::transmute(print_compel_log as *const ())), // TODO
+            match log_level {
+                Level::Error => compel_sys::__compel_log_levels_COMPEL_LOG_ERROR,
+                Level::Warn => compel_sys::__compel_log_levels_COMPEL_LOG_WARN,
+                Level::Info => compel_sys::__compel_log_levels_COMPEL_LOG_INFO,
+                Level::Debug => compel_sys::__compel_log_levels_COMPEL_LOG_DEBUG,
+                Level::Trace => compel_sys::__compel_log_levels_COMPEL_LOG_DEBUG,
+            },
         );
     }
 }
