@@ -1,3 +1,5 @@
+pub mod pie_logger;
+
 use std::{
     ffi::{c_char, c_int, c_long},
     marker::PhantomData,
@@ -5,6 +7,7 @@ use std::{
 };
 
 pub use compel_sys;
+pub use pie_logger::PieLogger;
 pub use syscalls;
 
 use log::Level;

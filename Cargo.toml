@@ -11,3 +11,8 @@ vsprintf = "2.0.0"
 log = "0.4.17"
 libc = "0.2.139"
 syscalls = { version = "0.6", default-features = false }
+nix = "0.26.2"
+
+[features]
+default = ["compelext"]
+compelext = []
