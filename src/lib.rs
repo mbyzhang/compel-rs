@@ -13,6 +13,9 @@ pub use syscalls;
 use log::Level;
 use syscalls::{SyscallArgs, Sysno};
 
+#[cfg(feature = "compelext")]
+use std::ops::Range;
+
 #[derive(Debug, Clone, PartialEq, Copy)]
 pub struct Error(&'static str, c_int);
 
@@ -124,6 +127,13 @@ where
         ))?;
 
         Ok(ret as _)
+    }
+
+    #[cfg(feature = "compelext")]
+    pub fn remote_map_range(&self) -> Range<u64> {
+        let start = unsafe { compel_sys::compel_get_remote_map(self.inner) } as u64;
+        let length = unsafe { compel_sys::compel_get_map_length(self.inner) } as u64;
+        start..start + length
     }
 }
 
